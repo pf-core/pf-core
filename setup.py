@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="template",
-    url="https://github.com/esteinig/app-template",
+    name="pathfinder",
+    url="https://github.com/esteinig/pathfinder",
     author="Eike J. Steinig",
     author_email="eikejoachim.steinig@my.jcu.edu.au",
     packages=find_packages(),
@@ -26,10 +26,10 @@ setup(
     ],
     entry_points="""
         [console_scripts]
-        template=template.terminal.client:terminal_client
-        elasmo=template.terminal.client:terminal_client
+        pathfinder=pathfinder.terminal.client:terminal_client
+        pf=pathfinder.terminal.client:terminal_client
     """,
     version="0.1",
     license="MIT",
-    description="Support package for Elasmobranch Reference Genome Consortium",
+    description="PathFinder development: app, database, workflows, package. ",
 )

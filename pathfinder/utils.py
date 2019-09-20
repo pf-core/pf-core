@@ -1,6 +1,10 @@
 import subprocess
 import shlex
 import sys
+import dendropy
+import pandas
+
+from pathlib import Path
 
 
 def run_cmd(cmd, callback=None, watch=False, background=False, shell=False):
@@ -58,3 +62,25 @@ def run_cmd(cmd, callback=None, watch=False, background=False, shell=False):
         return callback(output)
 
     return output
+
+
+# Phylogenetics support functions
+
+def get_tree_dates(newick_file: Path) -> pandas.DataFrame:
+
+    """ Get the leaf names and dates from the input tree
+
+    :param newick_file: tree file in newick format
+
+    :returns Pandas DataFrame with two columns: name, date
+
+    """
+
+    tree = dendropy.Tree.get(path=newick_file, schema="newick")
+
+    return pandas.DataFrame(
+        data=[taxon.label.split() for taxon in tree.taxon_namespace],
+        columns=['name', 'date']
+    )
+
+

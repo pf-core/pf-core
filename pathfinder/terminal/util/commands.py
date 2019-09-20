@@ -8,7 +8,7 @@ from pathlib import Path
     '--data', '-d', help='Input data file'
 )
 def util(data, outdir, copy, delimiter, uuid):
-    """ Template """
+    """ PathFinder """
 
 
 

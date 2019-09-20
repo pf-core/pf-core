@@ -2,11 +2,12 @@ from pathlib import Path
 
 
 class MongoAPI:
+
     """ Convenience base class for utilities around PyMongo and MongoDB """
 
     def __init__(
         self,
-        config: Path = Path.home() / '.template' / 'db' / 'config.json'
+        config: Path = Path.home() / '.pathfinder' / 'db' / 'config.json'
     ):
 
         pass
