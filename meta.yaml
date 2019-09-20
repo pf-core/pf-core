@@ -1,0 +1,58 @@
+{% set version = "0.1.a1" %}
+
+package:
+  name: egrc
+  version: {{ version }}
+
+source:
+  url: https://github.com/esteinig/egrc/archive/v{{ version }}.tar.gz # [linux64,linux32]
+
+build:
+  number: 0
+  script: python -m pip install . -vv
+
+requirements:
+  build:
+      - {{ compiler('cxx') }}
+  host:
+      - wget
+      - python >=3.7
+      - pip
+      - tqdm
+      - colorama
+      - pandas
+      - click
+      - pytest
+      - seaborn
+      - scipy
+      - python-dateutil
+      - numpy
+      - pysam
+      - nextflow
+  run:
+      - wget
+      - python >=3.7
+      - pip
+      - tqdm
+      - colorama
+      - pandas
+      - click
+      - pytest
+      - seaborn
+      - scipy
+      - python-dateutil
+      - numpy
+      - pysam
+      - nextflow
+
+test:
+  commands:
+      - sketchy --help
+      - nextflow run -h
+
+about:
+  home: 'https://github.com/esteinig/egrc'
+  license: MIT
+  license_file: LICENSE
+  summary: 'Support package for Elasmobranch Reference Genome Consortium.'
+
