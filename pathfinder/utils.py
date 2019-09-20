@@ -3,13 +3,13 @@ import shlex
 import sys
 import dendropy
 import pandas
-
+import pysam
 from pathlib import Path
 
 
 def run_cmd(cmd, callback=None, watch=False, background=False, shell=False):
 
-    """Runs the given command and gathers the output.
+    """ Runs the given command and gathers the output.
 
     If a callback is provided, then the output is sent to it, otherwise it
     is just returned.
@@ -64,6 +64,29 @@ def run_cmd(cmd, callback=None, watch=False, background=False, shell=False):
     return output
 
 
+# Alignment support functions
+
+def remove_sample(alignment: Path, outfile: Path, remove: str or list) -> None:
+
+    """ Remove any sequence from the alignment file by sequence name or list of sequence names
+
+    :param alignment: alignment file (.fasta)
+    :param outfile: output file (.fasta)
+    :param remove: sequence identifiers to remove
+
+    :return:  None, outputs alignment file with sequences removed
+
+    """
+
+    if isinstance(remove, str):
+        remove = [remove]
+
+    with pysam.FastxFile(alignment) as fin, outfile.open(mode='w') as fout:
+        for entry in fin:
+            if entry.name not in remove:
+                fout.write(str(entry))
+
+
 # Phylogenetics support functions
 
 def get_tree_dates(newick_file: Path) -> pandas.DataFrame:
@@ -72,7 +95,7 @@ def get_tree_dates(newick_file: Path) -> pandas.DataFrame:
 
     :param newick_file: tree file in newick format
 
-    :returns Pandas DataFrame with two columns: name, date
+    :returns `pandas.DataFrame` with two columns: name, date
 
     """
 
@@ -84,3 +107,29 @@ def get_tree_dates(newick_file: Path) -> pandas.DataFrame:
     )
 
 
+def randomise_date_file(date_file: Path, output_file: Path = None, **kwargs) -> pandas.DataFrame:
+
+    """ Randomise order of dates in file
+
+    DataFrame input options can be passed as **kwargs
+
+    :param date_file: Path to date file with columns: name and date
+    :param output_file: Path to tab-delimited output file for randomised dates
+    :param kwargs: Additional arguments passed to `pandas.read_csv`
+
+    :returns DataFrame with shuffled
+
+    """
+
+    df = pandas.read_csv(date_file, **kwargs)
+    df['date'] = df.drop('name', axis=1).sample(frac=1).reset_index()
+
+    if output_file is not None:
+        df.to_csv(output_file, sep='\t', header=None, index=False)
+
+    return df
+
+
+def plot_date_randomisation():
+
+    pass
