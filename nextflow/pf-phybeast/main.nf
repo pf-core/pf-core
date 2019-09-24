@@ -13,26 +13,34 @@
 
 log.info """
 
+|========================|
+|                        |
+|========================|
+|            ||          |
+|            ||          |
+|            ||          |
 |===================================================|
 |                     PHYBEAST                      |
 |                       v0.1                        |
 |===================================================|
-|||                                               |||
-|||                                               |||
-|||                                               |||
+|||     |||     |||         |||         |||       |||
+|||     |||     |||         |||         |||       |||
+|||     |||     |||         |||         |||       |||
 
     PE reads:             $params.fastq
+    Outdir:               $params.outdir
     Metadata:             $params.metadata
     Reference:            $params.reference
     Recombination:        $params.recombination
     Phylogeny:            $params.phylogeny
     Molecular clock:      $params.clock
 
-|||                                               |||
-|||                                               |||
-|||                                               |||
+|||     |||     |||         |||         |||       |||
+|||     |||     |||         |||         |||       |||
+|||     |||     |||         |||         |||       |||
 |===================================================|
 |===================================================|
+
 
 """
 
@@ -46,11 +54,10 @@ Phylodynamic workflows for bacterial pathogens.
 
 Required Parameters:
 
--f|--fastq     Glob for FASTQ read files
--r|--reference FASTA reference genome file
+-f|--fastq     Glob for parsing read files (.fastq) in format: {id}_{1,2}.fastq.gz
+-r|--reference FASTA reference genome file for alignment and variant calling: {ref}.fasta
+-m|--metadata  CSV metadata file with columns: name, date, where name corresponds to {id}
 
--m|--metadata  CSV metadata file with date column
-v_
 
 Optional Parameters:
 
@@ -155,7 +162,6 @@ process Trimmomatic {
 process Snippy {
 
   label "alignment"
-  tag { id }
 
   input:
   set id, file(forward), file(reverse) from alignment
@@ -176,7 +182,6 @@ process Snippy {
 process SnippyCore {
 
   label "data"
-  tag { "Core SNP Alignment" }
 
   publishDir "${params.outdir}", mode: "copy"
 
@@ -184,13 +189,13 @@ process SnippyCore {
   file(snippy_outputs) from core_alignment.collect()
 
   output:
-  file("alignment.fasta") into recombination
+  file("core.alignment.fasta") into recombination
   file("core.aln")
 
   """
   snippy-core --ref $reference --prefix core $snippy_outputs
-  snippy-clean_full_aln core.full.aln > clean.alignment.fasta
-  python $baseDir/scripts/remove_reference.py -a clean.alignment.fasta -o alignment.fasta
+  snippy-clean_full_aln core.aln > clean.alignment.fasta
+  pathfinder phybeast utils remove-reference -a clean.alignment.fasta -o core.alignment.fasta
   """
 
 }
@@ -201,31 +206,26 @@ process SnippyCore {
 process Gubbins {
 
   label "recombination"
-  tag { "$clean_alignment" }
+  tag { "$core_alignment" }
 
   publishDir "${params.outdir}", mode: "copy"
 
   input:
-  file(clean_alignment) from recombination
+  file(core_alignment) from recombination
 
   output:
-  file("core.alignment.fasta") into phylogeny // Base phylogeny
-  file("core.alignment.fasta") into clock_align
-  file("core.alignment.fasta") into tree_align
-
-  when:
-  params.recombination
+  file("core.alignment.recombination.fasta") into (phylogeny, clock_align, tree_align, reg_align, rep_align)
 
   """
-  run_gubbins.py -p gubbins --threads $task.cpus $clean_alignment
-  snp-sites -c gubbins.filtered_polymorphic_sites.fasta > core.alignment.fasta
+  run_gubbins.py -p gubbins --threads $task.cpus $core_alignment
+  snp-sites -c gubbins.filtered_polymorphic_sites.fasta > core.alignment.recombination.fasta
   """
 
 }
 
 // TreeBuilders
 
-// ASC_LEWIS for ascertainment bias correction (using core SNPs)
+// Default ascertainment bias (Lewis) correction using core SNPs
 
 process Phylogeny {
 
@@ -236,27 +236,28 @@ process Phylogeny {
   file(alignment) from phylogeny
 
   output:
-  file("tree.newick") into phylo
+  file("tree.newick") into ( phylo, phylo_randomisation, phylo_regression )
 
 
   script:
 
-  if params.phylogeny == 'raxml':
+  if (params.phylogeny == 'raxml')
 
     """
-    raxml-ng --msa $alignment --model $model --tree rand{10} \
+    raxml-ng --msa $alignment --model $params.model \
     --threads $task.cpus --prefix phylo --force
+
     mv phylo.raxml.bestTree tree.newick
     """
 
-  else if params.phylogeny == 'phyml':
+  else if (params.phylogeny == 'phyml')
 
     """
     goalign reformat -i $alignment phylip > aln.phy
-    phyml -i phy 
+    phyml -i phy
     """
 
-  else if params.phylogeny == 'fasttree':
+  else if (params.phylogeny == 'fasttree')
 
     """
     FastTree -gtr -nt $alignment > tree.newick
@@ -265,35 +266,67 @@ process Phylogeny {
 
 }
 
-// Molecular clock estimates
+// Molecular clock estimates, extracts susbstitution rate estimate
 
-process MolecularClockEstimate {
+process MolecularClock {
 
-  label "phylogeny"
+  label "data"
   tag { "$tree" }
 
   publishDir "${params.outdir}", mode: "copy"
 
   input:
-  file(alignment) from clock_align
   file(tree) from phylo
+  file(alignment) from clock_align
 
   output:
-  file("clock/")
+  file("clock.txt")
+  file("rate.txt") into plot_date_randomisation_rate
 
   script:
 
-  if params.clock == 'treetime':
+  if (params.clock == 'treetime')
 
     """
-    treetime clock --tree $tree --dates $metadata --allow-negative-rate \
-    --aln $alignment --outdir clock > output.txt
-    """
-  else if params.clock == 'lsd':
-    """
-    lsd -i $tree -d $dates -r a -c -o clock
+    pathfinder phybeast utils prepare-metadata -m $metadata -p treetime -o treetime.meta
+    treetime clock --tree $tree --aln $alignment --dates treetime.meta --allow-negative-rate \
+    --outdir clock > clock.txt
+    pathfinder phybeast utils extract-rate -f output.txt -p treetime -o rate.txt
     """
 
+  else if (params.clock == 'lsd')
+
+    """
+    pathfinder phybeast utils prepare-metadata -m $metadata -p lsd2 -o lsd2.meta
+    lsd2 -i $tree -d lsd2.meta -r a -c -o clock.txt
+    pathfinder phybeast utils extract-rate -f clock.txt -p lsd2 -o rate.txt
+    """
+
+}
+
+// Date regression estimate with TimeTree, separate from clock estimate above
+
+process DateRegression {
+
+  label "data"
+  tag { "$tree" }
+
+  publishDir "${params.outdir}", mode: "copy"
+
+  input:
+  file(tree) from phylo_regression
+  file(alignment) from reg_align
+
+  output:
+  file("rtt.csv") into plot_regression
+
+  script:
+
+  """
+  pathfinder phybeast utils prepare-metadata -m $metadata -p treetime -o treetime.meta
+  treetime clock --tree $tree --aln $alignment --dates treetime.meta --allow-negative-rate --outdir clock > clock.txt
+  mv clock/rtt.csv rtt.csv
+  """
 
 
 }
@@ -303,60 +336,83 @@ process MolecularClockEstimate {
 
 if (params.date_test){
 
-  process RandomizeDates {
+  replicates = 1..params.replicates
 
-    label "date_random"
-    tag { "$alignment" }
+  process DateRandomisation {
 
-    publishDir "${params.outdir}", mode: "copy"
+    label "data"
 
     input:
     file(alignment) from clock_align
-    each rep from params.replicates
+    each rep from replicates
 
     output:
-    file("random.${rep}.tab") into estimate_rate
+    set rep, file("random.${rep}.tab") into estimate_rate
 
     """
-    $baseDir/scripts/randomize_dates.py --date_file $metadata --output_file random.${rep}.tab
+    pathfinder phybeast utils randomise-dates --date_file $metadata --output random.${rep}.tab
     """
 
   }
 
-  process EstimateSubstitutionRate {
+  process ClockReplicate {
 
-    label "date_random"
-    tag { "$alignment" }
+    label "data"
+
+    input:
+    set rep, file(random_dates) from estimate_rate
+    file(tree) from phylo_randomisation
+    file(alignment) from rep_align
+
+    output:
+    file("rate.${rep}.txt") into plot_date_randomisation
+
+    script:
+
+    if (params.clock == 'lsd')
+
+      """
+      pathfinder phybeast utils prepare-metadata -m $random_dates -p lsd2 -o lsd2.meta
+      lsd2 -i $tree -d lsd2.meta -r a -c -o clock.${rep}.txt
+      pathfinder phybeast utils extract-rate -f clock.${rep}.txt -p lsd2 -o rate.${rep}.txt
+      """
+
+    else if (params.clock == 'treetime')
+
+      """
+      pathfinder phybeast utils prepare-metadata -m $random_dates -p treetime -o treetime.meta
+      treetime clock --tree $tree --aln $alignment --dates treetime.meta --allow-negative-rate \
+      --outdir clock > clock.${rep}.txt
+      pathfinder phybeast utils extract-rate -f clock.${rep}.txt -p treetime -o rate.${rep}.txt
+      """
+
+  }
+
+  process DateRandomisationPlot {
+
+    label "data"
 
     publishDir "${params.outdir}", mode: "copy"
 
     input:
-    file(random_dates) from estimate_rate
+    file(rates) from plot_date_randomisation.collect()
+    file(rate) from plot_date_randomisation_rate
+    file(regression) from plot_regression
 
     output:
-    file("") into plot_distribution
+    file("clock/rtt.csv")
+    file("rates.tab")
 
     script:
 
-    if params.clock == 'lsd':
-
-      """
-      lsd -i $tree -d $random_dates -r a -c -o replicate_date
-      """
-
-    else if params.clock == 'treetime':
-
-      """
-      treetime clock --tree $tree --dates $metadata --allow-negative-rate \
-      --aln $alignment --outdir clock_align > output.txt
-      """
-
+    """
+    cat $rates > rates.tab
+    pathfinder phybeast utils plot-date-randomisation -f rates.tab -r $rate \
+    -o date_randomisation.png --regression $regression
+    """
 
   }
 
-  process PlotDateRandomisations {
+// pathfinder phybeast plot-date-random -f rates.tab -r $rate -o date_randomisation.png
 
-
-
-  }
 }

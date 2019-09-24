@@ -3,7 +3,7 @@ import uuid
 import pandas
 import urllib.request
 
-from pathfinder.utils import get_genome_sizes
+from pathfinder.utils import get_genome_sizes, get_aspera_key
 
 import shlex
 import subprocess
@@ -24,7 +24,7 @@ class MiniAspera:
         self.force = force
 
         self.ascp = 'ascp'
-        self.key = Path.home() / ".aspera/connect/etc/asperaweb_id_dsa.openssh"
+        self.key = get_aspera_key()
 
         self.fasp = "era-fasp@fasp.sra.ebi.ac.uk:"
 
@@ -56,7 +56,8 @@ class MiniAspera:
                     fq1_address = fastq["ftp_1"].replace(
                         "ftp.sra.ebi.ac.uk", self.fasp
                     )
-                    fq1_path = Path(outdir) / Path(fq1_address).name
+
+                fq1_path = Path(outdir) / Path(fq1_address).name
 
                 self.download(
                     address=fq1_address,
@@ -99,7 +100,6 @@ class MiniAspera:
                 f" -P{str(self.port)} -i {self.key} -q "
                 f"{address} {outfile}"
             )
-            print(cmd)
         try:
             subprocess.call(cmd)
         except subprocess.CalledProcessError:
@@ -359,7 +359,7 @@ class Survey:
             if bases:
                 try:
                     coverage = bases/(float(
-                        genome_sizes.loc[entry["tax_id"], "Size"]
+                        genome_sizes.loc[entry["tax_id"], "size"]
                     )*1000000)
                 except KeyError or ValueError or ZeroDivisionError:
                     coverage = None
@@ -391,7 +391,7 @@ class Survey:
         try:
             df = pandas.DataFrame(sanitized_dict).T
         except EmptyDataError:
-            raise SurveyError(f"No results were returned for query: {url}")
+            raise ValueError(f"No results were returned for query: {url}")
 
         return df
 

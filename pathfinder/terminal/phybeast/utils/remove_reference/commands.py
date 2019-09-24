@@ -11,10 +11,7 @@ from pathfinder.utils import remove_sample
 @click.option(
     "--output", "-o", default="output_alignment.fasta", help="Output alignment.", type=Path,
 )
-@click.option(
-    "--remove", "-r", default="Reference", help="Remove sequences with this name."
-)
-def remove_reference(alignment, output, remove):
+def remove_reference(alignment, output):
 
     """ Remove 'Reference' from Snippy alignment output file """
 

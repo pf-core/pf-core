@@ -11,15 +11,15 @@ VERSION = '0.1'
 
 @click.group()
 @click.version_option(version=VERSION)
-def phybeast():
+def utils():
 
-    """ Phybeast: phylodynamic analysis pipelines for bacterial pathogens """
+    """ Phybeast: utility tasks for pipeline execution """
 
     pass
 
 
-phybeast.add_command(extract_rate)
-phybeast.add_command(remove_reference)
-phybeast.add_command(randomise_dates)
-phybeast.add_command(prepare_metadata)
-phybeast.add_command(plot_date_randomisation)
+utils.add_command(extract_rate)
+utils.add_command(remove_reference)
+utils.add_command(randomise_dates)
+utils.add_command(prepare_metadata)
+utils.add_command(plot_date_randomisation)

@@ -3,7 +3,7 @@ FROM frolvlad/alpine-miniconda3
 ENV CONDA_DIR="/opt/conda"
 
 # Minimal conda install, see  @ https://jcrist.github.io/conda-docker-tips.html
-RUN conda install -c bioconda --yes --no-update-deps \
+RUN conda install -c bioconda -c hcc --yes --no-update-deps \
         wget \
         tqdm \
         colorama \
@@ -22,6 +22,7 @@ RUN conda install -c bioconda --yes --no-update-deps \
         mongodb \
         pysam \
         nextflow\
+        aspera-cli
         nomkl \
         python=3.7 \
     && pip install mongoengine \

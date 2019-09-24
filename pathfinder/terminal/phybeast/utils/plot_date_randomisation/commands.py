@@ -1,26 +1,35 @@
 import click
 
 from pathlib import Path
-from pathfinder.plots import phybeast_plot_date_randomisation
+from pathfinder.utils import phybeast_plot_date_randomisation
 
 
 @click.command()
 @click.option(
-    "--file", "-f", default="lsd.out", type=Path,
-    help="Replicate rate file output from process ClockReplicate",
+    "--file", "-f", type=Path,
+    help="Replicate rate file from process DateRandomisationPlot",
+)
+@click.option(
+    "--rate", "-r", type=Path,
+    help="True rate file from process MolecularClock; one line.",
 )
 @click.option(
     "--output", "-o", default="date_randomisation.png",
     help="Output plot file; set extension for format.", type=Path,
 )
 @click.option(
-    "--rate", "-r", default="rate.txt", type=Path,
-    help="True rate of data set from process MolecularClock; one line.",
+    "--regression", type=Path, default=None,
+    help="Regression data file  from process DateRegression.",
 )
-def plot_date_randomisation(file, output, rate):
+def plot_date_randomisation(file, output, rate, regression):
 
     """ Plot date randomisation test by Duchene et al. """
 
-    phybeast_plot_date_randomisation(file=file, output=output, rate=rate)
+    phybeast_plot_date_randomisation(
+        replicate_file=file,
+        rate_file=rate,
+        output_file=output,
+        regression_file=regression
+    )
 
 

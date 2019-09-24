@@ -97,6 +97,8 @@ def download(
         if Path(query).exists():
             query_csv = Path(query)
             survey.query_from_csv(query_csv)
+        else:
+            raise ValueError(f'Query file does not exist: {query}')
     else:
         survey.query_ena(
             sample=accession,

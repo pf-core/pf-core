@@ -1,15 +1,18 @@
 import click
 
-from .download import download
+from .utils import client
+
 
 VERSION = '0.1'
 
 
 @click.group()
 @click.version_option(version=VERSION)
-def terminal_client():
-    """ PathFinder: population genomic analysis pipelines for bacterial pathogens """
+def phybeast():
+
+    """ Phybeast: phylodynamic analysis pipelines for bacterial pathogens """
+
     pass
 
-terminal_client.add_command(download)
 
+phybeast.add_command(client.utils)

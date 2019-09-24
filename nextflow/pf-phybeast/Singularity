@@ -1,0 +1,40 @@
+Bootstrap: docker
+From: continuumio/miniconda
+
+%post
+    apt-get update
+    apt-get install g++ make --yes \
+        && mkdir /src \
+        && cd /src \
+        && git clone https://github.com/tothuhien/lsd2.git \
+        && cd /src/lsd2/src \
+        && make \
+        && ln -s /src/lsd2/src/lsd2 /bin/lsd2
+
+
+    /opt/conda/bin/conda install -c bioconda -c genomedk --yes --no-update-deps \
+        nextflow \
+        goalign \
+        trimmomatic \
+        raxml-ng \
+        fasttree \
+        treetime \
+        gubbins \
+        pysam \
+        nomkl \
+        python=3.7
+
+    # Snippy
+
+    /opt/conda/bin/conda install -c conda-forge -c bioconda -c defaults snippy
+
+    # Cleanup
+
+    /opt/conda/bin/conda clean -a \
+        && find $CONDA_DIR -follow -type f -name '*.a' -delete \
+        && find $CONDA_DIR -follow -type f -name '*.pyc' -delete
+
+    # Development
+
+    /usr/bin/git clone https://github.com/pf-core/pf-core
+    /opt/conda/bin/pip install pf-core/ && rm -r pf-core/
